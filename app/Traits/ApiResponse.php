@@ -7,7 +7,7 @@ trait ApiResponse
     protected function successResponse($data, $message = null, $code = 200)
     {
         return response()->json([
-            'status' => 'success',
+            'status' => true,
             'message' => $message,
             'data' => $data
         ], $code);
@@ -16,12 +16,12 @@ trait ApiResponse
     protected function errorResponse($message, $code)
     {
         return response()->json([
-            'status' => 'error',
+            'status' => false,
             'message' => $message,
         ], $code);
     }
 
-    protected function tokenResponse($tokenData, $message = null, $refreshToken = null, $code=200)
+    protected function tokenResponse($tokenData, $message = null, $refreshToken = null, $code = 200)
     {
         $response = response()->json([
             'status' => 'success',
@@ -31,7 +31,7 @@ trait ApiResponse
                 'expires_in' => $tokenData['expires_in'],
                 'access_token' => $tokenData['access_token'],
             ]
-        ],$code);
+        ], $code);
 
         if ($refreshToken) {
             $response->cookie(

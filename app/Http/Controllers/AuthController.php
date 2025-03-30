@@ -31,13 +31,13 @@ class AuthController extends Controller
             // Return the access token and set refresh token in cookie
             return $this->tokenResponse(
                 $oAuthToken,
-                'Login successfully',
+                __('auth.login_success'),
                 $oAuthToken['refresh_token'],
                 200
             );
 
         } else {
-            return $this->errorResponse('Invalid credentials', 401);
+            return $this->errorResponse(__('auth.login_failed'), 401);
         }
     }
     // register
@@ -49,11 +49,11 @@ class AuthController extends Controller
                 'email' => $request->email,
                 'password' => bcrypt($request->password)
             ]);
-            return $this->successResponse($user, "Register Successfully", 201);
+            return $this->successResponse($user, __('auth.register_success'), 201);
 
         } catch (\Throwable $th) {
             \Log::error("Register failed: " . $th->getMessage());
-            return $this->errorResponse('Register fail ', 400);
+            return $this->errorResponse(__('auth.register_failed'), 400);
         }
     }
 
@@ -64,18 +64,18 @@ class AuthController extends Controller
             $token = $request->user()->token();
 
             if (!$token) {
-                return $this->errorResponse('Refresh token not found', 401);
+                return $this->errorResponse(__('auth.token_not_found'), 401);
             }
 
             // Revoke the access and refresh tokens
             $this->authService->revokeToken($token->id);
 
-            return $this->successResponse([], "Logout Successfully", 200)
+            return $this->successResponse([], __('auth.logout_success'), 200)
                 ->cookie('refresh_token', null, -1);
 
         } catch (\Throwable $th) {
             \Log::error("Logout failed: " . $th->getMessage());
-            return $this->errorResponse("Logout failed. Please try again.", 500);
+            return $this->errorResponse(__('auth.logout_failed'), 500);
         }
     }
     // refresh
@@ -85,26 +85,26 @@ class AuthController extends Controller
             $refreshToken = $request->cookie('refresh_token');
 
             if (!$refreshToken) {
-                return $this->errorResponse('Refresh token not found', 400);
+                return $this->errorResponse(__('auth.token_not_found'), 400);
             }
 
             $oAuthToken = $this->authService->refreshToken($refreshToken);
 
             if (!isset($oAuthToken['refresh_token'])) {
-                return $this->errorResponse('Refresh token invalid or expired', 401);
+                return $this->errorResponse(__('auth.token_invalid'), 401);
             }
 
             // Return the new access token and set refresh token in cookie
             return $this->tokenResponse(
                 $oAuthToken,
-                'Refresh token successfully',
+                __('auth.refresh_token_success'),
                 $oAuthToken['refresh_token'],
                 200
             );
 
         } catch (\Throwable $th) {
             \Log::error("Token refresh failed: " . $th->getMessage());
-            return $this->errorResponse("Token refresh failed.", 401);
+            return $this->errorResponse(__('auth.refresh_token_failed'), 401);
         }
     }
 }
