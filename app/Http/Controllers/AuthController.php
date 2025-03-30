@@ -2,134 +2,109 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Requests\Auth\LoginRequest;
+use App\Http\Requests\Auth\RegisterRequest;
 use App\Models\User;
+use App\Services\AuthService;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\Route;
-use Laravel\Passport\Client as OClient;
 
 class AuthController extends Controller
 {
-    // login
-    public function login(Request $request)
+    public function __construct(private AuthService $authService)
     {
-        $request->validate([
-            'email' => 'required|email',
-            'password' => 'required|min:6'
-        ]);
+    }
+    // login
+    public function login(LoginRequest $request): JsonResponse
+    {
         $credentials = $request->only('email', 'password');
+
         if (Auth::attempt($credentials)) {
-            $client = OClient::where('password_client', 1)->first();
-            $params = [
-                'grant_type' => 'password',
-                'client_id' => $client->id,
-                'client_secret' => $client->secret,
-                'username' => $request->email,
-                'password' => $request->password,
-                'scope' => '*',
-            ];
-            $request->request->add($params);
-            $request->headers->set("Accept", "application/json");
-            $request->headers->set("Content-Type", "application/json");
+            // Generate OAuth token and refresh token
+            $oAuthToken = $this->authService->getTokenAndRefreshToken($request->email, $request->password);
 
-            $proxy = Request::create('oauth/token', 'POST');
+            if (!isset($oAuthToken['refresh_token'])) {
+                return $this->errorResponse('login fail', 401);
+            }
 
-            $res = Route::dispatch($proxy);
+            // Return the access token and set refresh token in cookie
+            return $this->tokenResponse(
+                $oAuthToken,
+                'Login successfully',
+                $oAuthToken['refresh_token'],
+                200
+            );
 
-            $response = json_decode($res->getContent(), true);
-
-            return response()->json([
-                "status" => "success",
-                "message" => "login suc",
-                "data" => [
-                    "token_type" => $response['token_type'],
-                    "expires_in" => $response['expires_in'],
-                    "access_token" => $response['access_token'],
-                ]
-            ], $res->getStatusCode())->cookie(
-                    'refresh_token',
-                    $response['refresh_token'],
-                    60 * 24 * 30, // 30 days
-                    null,
-                    null,
-                    true, // secure
-                    true  // httpOnly
-                );
-            ;
         } else {
-            return response()->json(['error' => 'Invalid credentials'], 401);
+            return $this->errorResponse('Invalid credentials', 401);
         }
     }
     // register
-    public function register(Request $request)
+    public function register(RegisterRequest $request): JsonResponse
     {
+        try {
+            $user = User::create([
+                'name' => $request->name,
+                'email' => $request->email,
+                'password' => bcrypt($request->password)
+            ]);
+            return $this->successResponse($user, "Register Successfully", 201);
 
-        $request->validate([
-            'name' => 'required',
-            'email' => 'required|email|unique:users',
-            'password' => 'required|min:8',
-            'confirm_password' => 'required|same:password'
-        ]);
-
-        $user = User::create([
-            'name' => $request->name,
-            'email' => $request->email,
-            'password' => bcrypt($request->password)
-        ]);
-
-        return response()->json(['data' => $user, "message" => 'register suc'], 201);
+        } catch (\Throwable $th) {
+            \Log::error("Register failed: " . $th->getMessage());
+            return $this->errorResponse('Register fail ', 400);
+        }
     }
 
     // logout
-
-    // refresh
-    public function refresh(Request $request)
+    public function logout(Request $request): JsonResponse
     {
-        $refresh_token = $request->cookie('refresh_token');
+        try {
+            $token = $request->user()->token();
 
-        if (!$refresh_token) {
-            return response()->json(['error' => 'Refresh token not found'], 400);
+            if (!$token) {
+                return $this->errorResponse('Refresh token not found', 401);
+            }
+
+            // Revoke the access and refresh tokens
+            $this->authService->revokeToken($token->id);
+
+            return $this->successResponse([], "Logout Successfully", 200)
+                ->cookie('refresh_token', null, -1);
+
+        } catch (\Throwable $th) {
+            \Log::error("Logout failed: " . $th->getMessage());
+            return $this->errorResponse("Logout failed. Please try again.", 500);
         }
+    }
+    // refresh
+    public function refresh(Request $request): JsonResponse
+    {
+        try {
+            $refreshToken = $request->cookie('refresh_token');
 
-        $client = OClient::where('password_client', 1)->first();
+            if (!$refreshToken) {
+                return $this->errorResponse('Refresh token not found', 400);
+            }
 
-        $params = [
-            'grant_type' => 'refresh_token',
-            'refresh_token' => $refresh_token,
-            'client_id' => $client->id,
-            'client_secret' => $client->secret,
-            'scope' => '*',
-        ];
+            $oAuthToken = $this->authService->refreshToken($refreshToken);
 
-        $request->request->add($params);
-        $request->headers->set('Accept', 'application/json');
-        $request->headers->set('Content-Type', 'application/json');
+            if (!isset($oAuthToken['refresh_token'])) {
+                return $this->errorResponse('Refresh token invalid or expired', 401);
+            }
 
-        $proxy = Request::create('oauth/token', 'POST');
-        $response = Route::dispatch($proxy);
-
-        $data = json_decode($response->getContent(), true);
-
-        if (!$response->isSuccessful()) {
-            return response()->json(['error' => 'Failed to refresh token'], $response->getStatusCode());
-        }
-
-        return response()->json([
-            'status' => 'success',
-            'message' => 'Token refreshed successfully',
-            'data' => [
-                'token_type' => $data['token_type'],
-                'expires_in' => $data['expires_in'],
-                'access_token' => $data['access_token'],
-            ]
-        ], 200)->cookie(
-                'refresh_token',
-                $data['refresh_token'],
-                60 * 24 * 30, // 30 days
-                null,
-                null,
-                true, // secure
-                true  // httpOnly
+            // Return the new access token and set refresh token in cookie
+            return $this->tokenResponse(
+                $oAuthToken,
+                'Refresh token successfully',
+                $oAuthToken['refresh_token'],
+                200
             );
+
+        } catch (\Throwable $th) {
+            \Log::error("Token refresh failed: " . $th->getMessage());
+            return $this->errorResponse("Token refresh failed.", 401);
+        }
     }
 }
