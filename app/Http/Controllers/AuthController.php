@@ -6,6 +6,7 @@ use App\Http\Requests\Auth\LoginRequest;
 use App\Http\Requests\Auth\RegisterRequest;
 use App\Models\User;
 use App\Services\AuthService;
+use Illuminate\Auth\Events\Registered;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -44,11 +45,17 @@ class AuthController extends Controller
     public function register(RegisterRequest $request): JsonResponse
     {
         try {
+
+            // create user
             $user = User::create([
                 'name' => $request->name,
                 'email' => $request->email,
                 'password' => bcrypt($request->password)
             ]);
+
+            // send email verifaction
+            event(new Registered($user));
+    
             return $this->successResponse($user, __('auth.register_success'), 201);
 
         } catch (\Throwable $th) {
@@ -88,6 +95,7 @@ class AuthController extends Controller
                 return $this->errorResponse(__('auth.token_not_found'), 400);
             }
 
+            // Refresh the access token
             $oAuthToken = $this->authService->refreshToken($refreshToken);
 
             if (!isset($oAuthToken['refresh_token'])) {
@@ -107,20 +115,22 @@ class AuthController extends Controller
             return $this->errorResponse(__('auth.refresh_token_failed'), 401);
         }
     }
+  
     // current user
     public function currentUser(Request $request): JsonResponse
     {
         try {
             $user = $request->user();
-            
+
             if (!$user) {
                 return $this->errorResponse(__('auth.user_not_found'), 401);
             }
-            
+
             return $this->successResponse($user, __('auth.success'), 200);
         } catch (\Throwable $th) {
             \Log::error("Failed to get current user: " . $th->getMessage());
             return $this->errorResponse(__('auth.failed'), 500);
         }
     }
+
 }
