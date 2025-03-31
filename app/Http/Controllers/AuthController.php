@@ -107,4 +107,20 @@ class AuthController extends Controller
             return $this->errorResponse(__('auth.refresh_token_failed'), 401);
         }
     }
+    // current user
+    public function currentUser(Request $request): JsonResponse
+    {
+        try {
+            $user = $request->user();
+            
+            if (!$user) {
+                return $this->errorResponse(__('auth.user_not_found'), 401);
+            }
+            
+            return $this->successResponse($user, __('auth.success'), 200);
+        } catch (\Throwable $th) {
+            \Log::error("Failed to get current user: " . $th->getMessage());
+            return $this->errorResponse(__('auth.failed'), 500);
+        }
+    }
 }
