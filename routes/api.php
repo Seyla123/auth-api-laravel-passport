@@ -19,9 +19,9 @@ Route::prefix('v1')->group(function () {
         Route::post('/logout', [AuthController::class, 'logout'])->middleware('auth:api');
         Route::get('/me', [AuthController::class, 'currentUser'])->middleware('auth:api', 'verified');
 
-        // verification
+        // verification email
         Route::get('/email/verify/{id}/{hash}', [VerifyEmailController::class, 'verify'])->name('verification.verify');
-
+        Route::post('/email/verify/resend', [VerifyEmailController::class, 'resend'])->middleware('auth:api', 'throttle:6,1');
     });
 });
 
