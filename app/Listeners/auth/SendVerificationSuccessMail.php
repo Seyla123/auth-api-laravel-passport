@@ -3,6 +3,7 @@
 namespace App\Listeners\auth;
 
 
+use App\Jobs\auth\SendEmailVerifiedNotificationJob;
 use App\Mail\auth\EmailVerifiedMail;
 use Illuminate\Auth\Events\Verified;
 use Illuminate\Support\Facades\Mail;
@@ -22,8 +23,7 @@ class SendVerificationSuccessMail
      */
     public function handle(Verified $event): void
     {
-        $email = $event->user->email;
-        //send welcome email
-        Mail::to($email)->queue(new EmailVerifiedMail($event->user));
+        // send verification success mail using emails queue worker
+        SendEmailVerifiedNotificationJob::dispatch($event->user)->onQueue('auth');
     }
 }

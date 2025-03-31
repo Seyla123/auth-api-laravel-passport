@@ -2,9 +2,8 @@
 
 namespace App\Listeners\auth;
 
-use App\Mail\auth\WelcomeMail;
+use App\Jobs\auth\SendEmailWelcomeJob;
 use Illuminate\Auth\Events\Verified;
-use Illuminate\Support\Facades\Mail;
 
 class SendWelcomeMail
 {
@@ -21,8 +20,7 @@ class SendWelcomeMail
      */
     public function handle(Verified $event): void
     {
-        $email = $event->user->email;
-        //send welcome email
-        Mail::to($email)->queue(new WelcomeMail($event->user));
+        // send welcome mail using emails queue worker with 10 seconds delay
+        SendEmailWelcomeJob::dispatch($event->user)->onQueue('auth')->delay(now()->addSeconds(10));
     }
 }
