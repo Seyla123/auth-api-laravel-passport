@@ -1,21 +1,29 @@
 <?php
 
-namespace App\Http\Controllers;
+namespace App\Http\Controllers\v1\auth;
 
+use App\Http\Controllers\Controller;
+use App\Http\Requests\auth\ForgotPasswordRequest;
 use App\Http\Requests\Auth\LoginRequest;
 use App\Http\Requests\Auth\RegisterRequest;
+use App\Http\Requests\auth\ResetPasswordRequest;
 use App\Models\User;
 use App\Services\AuthService;
+use Illuminate\Auth\Events\PasswordReset;
 use Illuminate\Auth\Events\Registered;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Password;
+use Illuminate\Support\Str;
 
 class AuthController extends Controller
 {
     public function __construct(private AuthService $authService)
     {
     }
+
     // login
     public function login(LoginRequest $request): JsonResponse
     {
@@ -41,6 +49,7 @@ class AuthController extends Controller
             return $this->errorResponse(__('auth.login_failed'), 401);
         }
     }
+
     // register
     public function register(RegisterRequest $request): JsonResponse
     {
@@ -55,7 +64,7 @@ class AuthController extends Controller
 
             // send email verifaction
             event(new Registered($user));
-    
+
             return $this->successResponse($user, __('auth.register_success'), 201);
 
         } catch (\Throwable $th) {
@@ -85,6 +94,7 @@ class AuthController extends Controller
             return $this->errorResponse(__('auth.logout_failed'), 500);
         }
     }
+
     // refresh
     public function refresh(Request $request): JsonResponse
     {
@@ -115,7 +125,65 @@ class AuthController extends Controller
             return $this->errorResponse(__('auth.refresh_token_failed'), 401);
         }
     }
-  
+
+    // forgot password
+    public function forgotPassword(ForgotPasswordRequest $request): JsonResponse
+    {
+        try {
+            // find user
+            $user = User::where('email', $request->email)->first();
+            if (!$user) {
+                return $this->errorResponse(__(''), 400);
+            }
+
+            // Send the password reset link email
+            $status = Password::sendResetLink($request->only('email'));
+
+            // Check if the password reset link was sent successfully
+            if ($status !== Password::RESET_LINK_SENT) {
+                return $this->errorResponse(__('auth.forgot_password_failed'), 400);
+            }
+
+            return $this->successResponse(null, __('forgot_password_success'), 200);
+
+        } catch (\Throwable $th) {
+            \Log::error("Failed to send forgot password email: " . $th->getMessage());
+            return $this->errorResponse(__('auth.forgot_password_failed'), 500);
+        }
+    }
+
+    // reset password
+    public function resetPassword(ResetPasswordRequest $request): JsonResponse
+    {
+        try {
+
+            $status = Password::reset(
+                $request->only('email', 'password', 'password_confirmation', 'token'),
+                function (User $user, string $password) {
+                    $user->forceFill([
+                        'password' => Hash::make($password)
+                    ])->setRememberToken(Str::random(60));
+
+                    $user->save();
+
+                    // not work
+                    event(new PasswordReset($user));
+                }
+            );
+
+            // Check if the password reset was successful
+            if ($status !== Password::PASSWORD_RESET) {
+                return $this->errorResponse(__('auth.reset_password_failed'), 400);
+            }
+
+            return $this->successResponse(null, __('auth.reset_password_success'), 200);
+
+        } catch (\Throwable $th) {
+            \Log::error("Failed to send reset password : " . $th->getMessage());
+            return $this->errorResponse(__('auth.reset_password_failed'), 500);
+        }
+    }
+
     // current user
     public function currentUser(Request $request): JsonResponse
     {
