@@ -49,7 +49,7 @@ class AuthService
      * @param string $password User password
      * @return array Token response containing access and refresh tokens
      */
-    public function getTokenAndRefreshToken(string $email, string $password)
+    public function getTokenAndRefreshToken(string $email, string $password): array
     {
         $params = [
             'grant_type' => 'password',
@@ -69,7 +69,7 @@ class AuthService
      * @param string $refreshToken The refresh token to use
      * @return array New token response
      */
-    public function refreshToken(string $refreshToken)
+    public function refreshToken(string $refreshToken): array
     {
         $params = [
             'grant_type' => 'refresh_token',
@@ -87,7 +87,7 @@ class AuthService
      * 
      * @param string $tokenId The token ID to revoke
      */
-    public function revokeToken(string $tokenId)
+    public function revokeToken(string $tokenId): void
     {
         $tokenRepository = app(TokenRepository::class);
         $refreshTokenRepository = app(RefreshTokenRepository::class);
@@ -111,7 +111,7 @@ class AuthService
      * 3. Dispatches the request through Laravel's router
      * 4. For password grants, if refresh token is missing, updates client and retries
      */
-    protected function makeTokenRequest(array $params)
+    protected function makeTokenRequest(array $params): array
     {
         request()->request->add($params);
         $request = Request::create('oauth/token', 'POST');
@@ -134,7 +134,7 @@ class AuthService
      * @param array $credentials User login credentials
      * @return array|false Token response or false if login fails
      */
-    public function attemptLogin(array $credentials)
+    public function attemptLogin(array $credentials): array|false
     {
         if (Auth::attempt($credentials)) {
             $oAuthToken = $this->getTokenAndRefreshToken($credentials['email'], $credentials['password']);
@@ -149,7 +149,7 @@ class AuthService
      * @param array $userData User registration data
      * @return User Newly created user instance
      */
-    public function register(array $userData)
+    public function register(array $userData): User
     {
         $user = User::create([
             'name' => $userData['name'],
@@ -168,7 +168,7 @@ class AuthService
      * @param string $email User email
      * @return bool Whether reset link was sent successfully
      */
-    public function forgotPassword(string $email)
+    public function forgotPassword(string $email): bool
     {
         $user = User::where('email', $email)->first();
         if (!$user) {
@@ -185,7 +185,7 @@ class AuthService
      * @param array $data Password reset data
      * @return bool Whether password was reset successfully
      */
-    public function resetPassword(array $data)
+    public function resetPassword(array $data): bool
     {
         $status = Password::reset(
             $data,
@@ -207,7 +207,7 @@ class AuthService
      * 
      * @return User|null Current user or null if not authenticated
      */
-    public function getCurrentUser()
+    public function getCurrentUser(): ?User
     {
         return Auth::user();
     }
