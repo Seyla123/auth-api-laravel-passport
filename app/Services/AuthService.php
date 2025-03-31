@@ -2,16 +2,38 @@
 
 namespace App\Services;
 
+use App\Models\User;
 use Laravel\Passport\Client as OClient;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Http\Request;
 use Laravel\Passport\TokenRepository;
 use Laravel\Passport\RefreshTokenRepository;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Password;
+use Illuminate\Support\Str;
+use Illuminate\Auth\Events\PasswordReset;
+use Illuminate\Auth\Events\Registered;
 
+/**
+ * Class AuthService
+ * 
+ * Handles all authentication related operations including OAuth token management,
+ * user registration, login, password reset and user session management.
+ */
 class AuthService
 {
+    /**
+     * @var OClient
+     * OAuth client instance for handling token operations
+     */
     protected OClient $client;
 
+    /**
+     * Initialize the auth service with OAuth client
+     * 
+     * @throws \RuntimeException when OAuth client is not found
+     */
     public function __construct()
     {
         $this->client = OClient::where('password_client', 1)->first();
@@ -20,6 +42,13 @@ class AuthService
         }
     }
 
+    /**
+     * Get OAuth token and refresh token for user credentials
+     * 
+     * @param string $email User email
+     * @param string $password User password
+     * @return array Token response containing access and refresh tokens
+     */
     public function getTokenAndRefreshToken(string $email, string $password)
     {
         $params = [
@@ -34,6 +63,12 @@ class AuthService
         return $this->makeTokenRequest($params);
     }
 
+    /**
+     * Refresh an existing OAuth token
+     * 
+     * @param string $refreshToken The refresh token to use
+     * @return array New token response
+     */
     public function refreshToken(string $refreshToken)
     {
         $params = [
@@ -47,11 +82,16 @@ class AuthService
         return $this->makeTokenRequest($params);
     }
 
+    /**
+     * Revoke both access and refresh tokens
+     * 
+     * @param string $tokenId The token ID to revoke
+     */
     public function revokeToken(string $tokenId)
     {
         $tokenRepository = app(TokenRepository::class);
         $refreshTokenRepository = app(RefreshTokenRepository::class);
-        
+
         // Revoke access token
         $tokenRepository->revokeAccessToken($tokenId);
 
@@ -86,5 +126,106 @@ class AuthService
         }
 
         return $result;
+    }
+
+    /**
+     * Attempt to log in a user and return OAuth tokens
+     * 
+     * @param array $credentials User login credentials
+     * @return array|false Token response or false if login fails
+     */
+    public function attemptLogin(array $credentials)
+    {
+        if (Auth::attempt($credentials)) {
+            $oAuthToken = $this->getTokenAndRefreshToken($credentials['email'], $credentials['password']);
+            return $oAuthToken;
+        }
+        return false;
+    }
+
+    /**
+     * Register a new user
+     * 
+     * @param array $userData User registration data
+     * @return User Newly created user instance
+     */
+    public function register(array $userData)
+    {
+        $user = User::create([
+            'name' => $userData['name'],
+            'email' => $userData['email'],
+            'password' => bcrypt($userData['password'])
+        ]);
+
+        event(new Registered($user));
+
+        return $user;
+    }
+
+    /**
+     * Send password reset link to user's email
+     * 
+     * @param string $email User email
+     * @return bool Whether reset link was sent successfully
+     */
+    public function forgotPassword(string $email)
+    {
+        $user = User::where('email', $email)->first();
+        if (!$user) {
+            return false;
+        }
+
+        $status = Password::sendResetLink(['email' => $email]);
+        return $status === Password::RESET_LINK_SENT;
+    }
+
+    /**
+     * Reset user's password
+     * 
+     * @param array $data Password reset data
+     * @return bool Whether password was reset successfully
+     */
+    public function resetPassword(array $data)
+    {
+        $status = Password::reset(
+            $data,
+            function (User $user, string $password) {
+                $user->forceFill([
+                    'password' => Hash::make($password)
+                ])->setRememberToken(Str::random(60));
+
+                $user->save();
+                event(new PasswordReset($user));
+            }
+        );
+
+        return $status === Password::PASSWORD_RESET;
+    }
+
+    /**
+     * Get the currently authenticated user
+     * 
+     * @return User|null Current user or null if not authenticated
+     */
+    public function getCurrentUser()
+    {
+        return Auth::user();
+    }
+
+    /**
+     * Log out the user by revoking their tokens
+     * 
+     * @param string $tokenId The token ID to revoke
+     * @return bool Whether logout was successful
+     */
+    public function logout(string $tokenId): bool
+    {
+        try {
+            $this->revokeToken($tokenId);
+            return true;
+        } catch (\Throwable $th) {
+            \Log::error("Token revocation failed: " . $th->getMessage());
+            return false;
+        }
     }
 }
