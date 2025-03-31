@@ -25,10 +25,11 @@ class VerifyEmailController extends Controller
             return $this->errorResponse(__('auth.already_verified'), 401);
         }
 
-        // Mark the email as verified and trigger the Verified event
+        // Mark email as verified and trigger verification event
         if ($user->markEmailAsVerified()) {
+            // Trigger Verified event to send welcome and verification emails
+            event(new Verified($user));
             \Log::info("User verified: {$user->email}");
-            event(new Verified(user: $user));
         }
 
         return $this->successResponse(null, __('auth.verify_email_success'), 200);
