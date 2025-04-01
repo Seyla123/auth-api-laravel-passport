@@ -61,6 +61,7 @@ Route::prefix('v1')->group(function () {
              */
             Route::prefix('profile')->group(function () {
                 Route::get('/', [ProfileController::class, 'getProfile']);
+                Route::post('/avatar', [ProfileController::class, 'updateAvatar']);
             });
         });
     });

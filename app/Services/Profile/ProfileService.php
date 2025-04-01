@@ -2,6 +2,7 @@
 namespace App\Services\Profile;
 use App\Models\User;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Storage;
 
 /**
  * Class ProfileService
@@ -20,4 +21,36 @@ class ProfileService
     {
         return Auth::user();
     }
+
+    // update user avatar
+    public function updateAvatar($avatar): string
+    {
+        $user = Auth::user();
+        $path = $avatar->store(
+            'avatars/' . $user->id,
+            's3'
+        );
+
+        // Delete old avatar if exists
+        if ($user->avatar) {
+            // Storage::disk('s3')->delete($user->avatar);
+            try {
+                $urlParts = parse_url($user->avatar);
+                $oldPath = ltrim($urlParts['path'], '/');
+
+                if (!empty($oldPath)) {
+                    Storage::disk('s3')->delete($oldPath);
+                }
+            } catch (\Exception $e) {
+                \Log::error('Failed to delete old avatar: ' . $e->getMessage());
+            }
+        }
+
+        $user->avatar = Storage::disk('s3')->url($path);
+
+        $user->save();
+
+        return $user->avatar;
+    }
+
 }
