@@ -27,7 +27,7 @@ class UpdateAvatarRequest extends FormRequest
                 'image',
                 'mimes:jpeg,png,jpg,gif',
                 'max:2048'
-            ]
+            ],
         ];
     }
 }

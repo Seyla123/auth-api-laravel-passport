@@ -24,5 +24,10 @@
     "errors.server_error": "Internal server error",
     "errors.not_found": "Resource not found",
     "errors.forbidden": "Forbidden access",
-    "errors.validation": "Validation error"
+    "errors.validation": "Validation error",
+    "profile.user_not_found": "User not found",
+    "profile.avatar_update_failed": "Failed to update avatar",
+    "profile.avatar_updated": "Avatar updated successfully",
+    "profile.no_data": "No data provided",
+    "profile.profile_update_success": "Profile updated successfully"
 }

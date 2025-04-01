@@ -60,7 +60,9 @@ Route::prefix('v1')->group(function () {
              * Handles user profile operations:
              */
             Route::prefix('profile')->group(function () {
-                Route::get('/', [ProfileController::class, 'getProfile']);
+                Route::get('', [ProfileController::class, 'getProfile']);
+                Route::post('', [ProfileController::class, 'updateProfile']);
+                // Route for updating the user's avatar, e.g., '/v1/user/profile/avatar
                 Route::post('/avatar', [ProfileController::class, 'updateAvatar']);
             });
         });

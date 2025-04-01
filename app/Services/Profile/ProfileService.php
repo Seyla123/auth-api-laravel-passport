@@ -14,11 +14,20 @@ use Illuminate\Contracts\Filesystem\Factory as Storage;
 class ProfileService
 {
     /**
-     *
+     * @var User The authenticated user instance
+     */
+    protected User $user;
+
+    /**
+     * ProfileService constructor
+     * Initializes the service with storage and authenticated user
+     * 
      * @param Storage $storage The storage factory instance for handling file operations
+     * @throws \Exception When no authenticated user is found
      */
     public function __construct(protected Storage $storage)
     {
+        $this->user = Auth::user();
     }
 
     /**
@@ -26,9 +35,9 @@ class ProfileService
      * 
      * @return User|null Current user or null if not authenticated
      */
-    public function getProfile(): ?User
+    public function getProfile(): User
     {
-        return Auth::user();
+        return $this->user;
     }
 
     /**
@@ -39,22 +48,23 @@ class ProfileService
      */
     public function updateAvatar(UploadedFile $avatar): string
     {
-        $user = Auth::user();
+        if (!$this->user) {
+            throw new \Exception('User not found');
+        }
+
         $path = $avatar->store(
-            'avatars/' . $user->id,
+            'avatars/' . $this->user->id,
             's3'
         );
 
         // Delete old avatar if exists from s3
-        if ($user instanceof User) {
-            $this->deleteOldAvatar($user);
-        }
+        $this->deleteOldAvatar($this->user);
 
         // Update user's avatar path to s3 and save
-        $user->avatar = $this->storage->disk('s3')->url($path);
-        $user->save();
+        $this->user->avatar = $this->storage->disk('s3')->url($path);
+        $this->user->save();
 
-        return $user->avatar;
+        return $this->user->avatar;
     }
 
     /**
@@ -80,6 +90,34 @@ class ProfileService
                 'user_id' => $user->id,
                 'error' => $e->getMessage()
             ]);
+        }
+    }
+
+    /**
+     * Update the authenticated user's profile information
+     *
+     * @param array $data The new profile data to update
+     * @return User The updated user instance
+     */
+    public function updateProfile(array $data): User
+    {
+        \DB::beginTransaction();
+        try {
+            // Update avatar if provided
+            if (isset($data['avatar']) && $data['avatar'] instanceof UploadedFile) {
+                $avatarUrl = $this->updateAvatar($data['avatar']);
+                $data['avatar'] = $avatarUrl;
+            }
+
+            // Update user's profile information
+            $this->user->update($data);
+
+            \DB::commit();
+            return $this->user->fresh();
+
+        } catch (\Exception $e) {
+            \DB::rollBack();
+            throw $e;
         }
     }
 }

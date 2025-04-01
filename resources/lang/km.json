@@ -24,5 +24,10 @@
     "errors.server_error": "កំហុសម៉ាស៊ីនមេ",
     "errors.not_found": "រកមិនឃើញធនធាន",
     "errors.forbidden": "ការចូលប្រើប្រាស់ត្រូវបានហាមឃាត់",
-    "errors.validation": "កំហុសក្នុងការផ្ទៀងផ្ទាត់"
+    "errors.validation": "កំហុសក្នុងការផ្ទៀងផ្ទាត់",
+    "profile.user_not_found": "រកមិនឃើញអ្នកប្រើប្រាស់",
+    "profile.avatar_update_failed": "ការផ្លាស់ប្តូររូបតំណាងបរាជ័យ",
+    "profile.avatar_updated": "រូបតំណាងត្រូវបានផ្លាស់ប្តូរដោយជោគជ័យ",
+    "profile.no_data": "គ្មានទិន្នន័យត្រូវបានផ្តល់",
+    "profile.profile_update_success": "ព័ត៌មានផ្ទាល់ខ្លួនត្រូវបានធ្វើឱ្យទាន់សម័យដោយជោគជ័យ"
 }
