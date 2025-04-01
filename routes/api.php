@@ -1,7 +1,8 @@
 <?php
 
-use App\Http\Controllers\v1\auth\AuthController;
-use App\Http\Controllers\v1\auth\VerifyEmailController;
+use App\Http\Controllers\v1\Auth\AuthController;
+use App\Http\Controllers\v1\Auth\VerifyEmailController;
+use App\Http\Controllers\v1\Profile\ProfileController;
 use Illuminate\Support\Facades\Route;
 
 /**
@@ -59,7 +60,7 @@ Route::prefix('v1')->group(function () {
              * Handles user profile operations:
              */
             Route::prefix('profile')->group(function () {
-                Route::get('/', [AuthController::class, 'currentUser']);
+                Route::get('/', [ProfileController::class, 'getProfile']);
             });
         });
     });

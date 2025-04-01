@@ -7,7 +7,7 @@ use App\Http\Requests\auth\ForgotPasswordRequest;
 use App\Http\Requests\Auth\LoginRequest;
 use App\Http\Requests\Auth\RegisterRequest;
 use App\Http\Requests\auth\ResetPasswordRequest;
-use App\Services\AuthService;
+use App\Services\Auth\AuthService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
@@ -142,22 +142,4 @@ class AuthController extends Controller
             return $this->errorResponse(__('auth.reset_password_failed'), 500);
         }
     }
-
-    // current user
-    public function currentUser(): JsonResponse
-    {
-        try {
-            $user = $this->authService->getCurrentUser();
-
-            if (!$user) {
-                return $this->errorResponse(__('auth.user_not_found'), 401);
-            }
-
-            return $this->successResponse($user, __('auth.success'), 200);
-        } catch (\Throwable $th) {
-            \Log::error("Failed to get current user: " . $th->getMessage());
-            return $this->errorResponse(__('auth.failed'), 500);
-        }
-    }
-
 }
