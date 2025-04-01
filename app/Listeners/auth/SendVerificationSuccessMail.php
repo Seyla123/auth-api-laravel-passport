@@ -4,9 +4,7 @@ namespace App\Listeners\auth;
 
 
 use App\Jobs\auth\SendEmailVerifiedNotificationJob;
-use App\Mail\auth\EmailVerifiedMail;
 use Illuminate\Auth\Events\Verified;
-use Illuminate\Support\Facades\Mail;
 
 class SendVerificationSuccessMail
 {

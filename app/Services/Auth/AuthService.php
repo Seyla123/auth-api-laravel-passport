@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Services;
+namespace App\Services\Auth;
 
 use App\Models\User;
 use Laravel\Passport\Client as OClient;
@@ -200,16 +200,6 @@ class AuthService
         );
 
         return $status === Password::PASSWORD_RESET;
-    }
-
-    /**
-     * Get the currently authenticated user
-     * 
-     * @return User|null Current user or null if not authenticated
-     */
-    public function getCurrentUser(): ?User
-    {
-        return Auth::user();
     }
 
     /**
