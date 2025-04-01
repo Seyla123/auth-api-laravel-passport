@@ -22,8 +22,10 @@ class SendEmailWelcomeJob extends Job
      */
     public function handle(): void
     {
-        Mail::to($this->user->email)->queue(new WelcomeMail($this->user));
+        \Log::info("(Job) , Sending welcome email to user {$this->user->id}");
+        Mail::to($this->user->email)->send(new WelcomeMail($this->user));
     }
+
     public function failed(Throwable $exception): void
     {
         \Log::error("Failed to send welcome email to user {$this->user->id}", [

@@ -23,7 +23,7 @@ class SendVerificationSuccessMail
      */
     public function handle(Verified $event): void
     {
-        // send verification success mail using emails queue worker
+        // send verification success mail using auth queue worker
         SendEmailVerifiedNotificationJob::dispatch($event->user)->onQueue('auth');
     }
 }
