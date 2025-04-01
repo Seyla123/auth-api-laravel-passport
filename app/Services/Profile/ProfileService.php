@@ -1,8 +1,9 @@
 <?php
 namespace App\Services\Profile;
 use App\Models\User;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\Storage;
+use Illuminate\Contracts\Filesystem\Factory as Storage;
 
 /**
  * Class ProfileService
@@ -13,6 +14,14 @@ use Illuminate\Support\Facades\Storage;
 class ProfileService
 {
     /**
+     *
+     * @param Storage $storage The storage factory instance for handling file operations
+     */
+    public function __construct(protected Storage $storage)
+    {
+    }
+
+    /**
      * Get the currently authenticated user
      * 
      * @return User|null Current user or null if not authenticated
@@ -22,8 +31,13 @@ class ProfileService
         return Auth::user();
     }
 
-    // update user avatar
-    public function updateAvatar($avatar): string
+    /**
+     * Update the authenticated user's avatar
+     * 
+     * @param UploadedFile $avatar The new avatar file to upload
+     * @return string The URL of the newly uploaded avatar
+     */
+    public function updateAvatar(UploadedFile $avatar): string
     {
         $user = Auth::user();
         $path = $avatar->store(
@@ -31,26 +45,41 @@ class ProfileService
             's3'
         );
 
-        // Delete old avatar if exists
-        if ($user->avatar) {
-            // Storage::disk('s3')->delete($user->avatar);
-            try {
-                $urlParts = parse_url($user->avatar);
-                $oldPath = ltrim($urlParts['path'], '/');
-
-                if (!empty($oldPath)) {
-                    Storage::disk('s3')->delete($oldPath);
-                }
-            } catch (\Exception $e) {
-                \Log::error('Failed to delete old avatar: ' . $e->getMessage());
-            }
+        // Delete old avatar if exists from s3
+        if ($user instanceof User) {
+            $this->deleteOldAvatar($user);
         }
 
-        $user->avatar = Storage::disk('s3')->url($path);
-
+        // Update user's avatar path to s3 and save
+        $user->avatar = $this->storage->disk('s3')->url($path);
         $user->save();
 
         return $user->avatar;
     }
 
+    /**
+     * Delete the user's old avatar from storage
+     * 
+     * @param User $user The user whose avatar should be deleted
+     * @return void
+     */
+    private function deleteOldAvatar(User $user): void
+    {
+        if (!$user->avatar)
+            return;
+
+        try {
+            $urlParts = parse_url($user->avatar);
+            $oldPath = ltrim($urlParts['path'], '/');
+
+            if (!empty($oldPath)) {
+                $this->storage->disk('s3')->delete($oldPath);
+            }
+        } catch (\Exception $e) {
+            \Log::error('Failed to delete old avatar', [
+                'user_id' => $user->id,
+                'error' => $e->getMessage()
+            ]);
+        }
+    }
 }
