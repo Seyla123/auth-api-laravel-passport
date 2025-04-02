@@ -23,7 +23,6 @@ class SocialAuthController extends Controller
     {
         try {
             $socialUser = Socialite::driver($provider)->stateless()->user();
-
             // Find or create user
             $user = User::updateOrCreate(
                 ['email' => $socialUser->getEmail()],
@@ -33,19 +32,24 @@ class SocialAuthController extends Controller
                     'provider_id' => $socialUser->getId(),
                     'email_verified_at' => now(),
                     'password' => bcrypt($socialUser->getId()),
+                    'avatar' => $socialUser->getAvatar(),
                 ]
             );
 
             // Generate token
             $tokenResult = $this->authService->getTokenAndRefreshToken(
-                $user->getEmail(),
+                $user->email,
                 $socialUser->getId()
             );
+
+            if (!$tokenResult || isset($tokenResult['refresh_token'])) {
+                return $this->errorResponse(__('auth.login_failed'), 401);
+            }
 
             return $this->tokenResponse($tokenResult, __('auth.login_success'), $tokenResult['refresh_token']);
 
         } catch (\Exception $e) {
-            return $this->errorResponse($e->getMessage(), $e->getCode() ?? 500);
+            return $this->errorResponse($e->getMessage(), 500);
         }
 
     }
