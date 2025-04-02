@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\v1\Auth\AuthController;
+use App\Http\Controllers\v1\Auth\SocialAuthController;
 use App\Http\Controllers\v1\Auth\VerifyEmailController;
 use App\Http\Controllers\v1\Profile\ProfileController;
 use Illuminate\Support\Facades\Route;
@@ -21,11 +22,7 @@ Route::prefix('v1')->group(function () {
      * └──────────────────────┘
      * 
      * Base route: /v1/auth/
-     * Handles user authentication operations including:
-     * - Registration
-     * - Login/Logout
-     * - Password management
-     * - Email verification
+     * Handles user authentication operations
      */
     Route::prefix('auth')->group(function () {
         Route::post('/register', [AuthController::class, 'register']);
@@ -40,6 +37,13 @@ Route::prefix('v1')->group(function () {
             Route::get('/verify/{id}/{hash}', [VerifyEmailController::class, 'verify'])->name('verification.verify');
             Route::post('/verify/resend', [VerifyEmailController::class, 'resend'])->middleware('auth:api', 'throttle:6,1');
         });
+
+        // Social login routes
+        Route::prefix('social')->group(function () {
+            Route::get('{provider}', [SocialAuthController::class, 'redirect']);
+            Route::get('{provider}/callback', [SocialAuthController::class, 'callback']);
+        });
+
     });
 
     /**

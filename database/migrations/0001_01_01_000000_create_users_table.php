@@ -21,6 +21,8 @@ return new class extends Migration {
             $table->boolean('is_active')->default(true);
             $table->enum('role', ['user', 'admin'])->default('user');
             $table->string('avatar')->nullable();
+            $table->string('provider_id')->nullable();
+            $table->string('provider')->nullable();
             $table->timestamps();
         });
 
