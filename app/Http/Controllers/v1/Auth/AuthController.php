@@ -9,7 +9,7 @@ use App\Http\Requests\Auth\RegisterRequest;
 use App\Http\Requests\auth\ResetPasswordRequest;
 use App\Services\Auth\AuthService;
 use Illuminate\Http\JsonResponse;
-use Illuminate\Http\Request; 
+use Illuminate\Http\Request;
 
 class AuthController extends Controller
 {
